@@ -3,6 +3,8 @@
 import sys
 import argparse
 import time
+import psutil
+
 
 try:
     import kismetexternal
@@ -10,6 +12,13 @@ except:
     print("ERROR:  Kismet external Python tools require the kismetexternal python ")
     print("        library; you can find it in the kismetexternal git or via pip")
     sys.exit(1)
+
+
+def kill_processes(process_name):
+    for process in psutil.process_iter():
+        if process.name() == process_name:
+            print("killing process id {}".format(process.pid))
+            process.kill()
 
 
 class KillEndpoint(object):
@@ -32,21 +41,21 @@ class KillEndpoint(object):
             self.results.infd, self.results.outfd
         )
 
-        # self.kei.debug = True
+        self.kei.debug = True
 
         self.kei.start()
 
-        self.kei.add_uri_handler("GET", "/proxytest/python.html", self.handle_uri)
+        self.kei.add_uri_handler("GET", "/kill.cmd", self.handle_uri)
+
+        self.kei.run()
 
     def handle_uri(self, externalhandler, request):
-        print(
-            "PYTHON - Handle web req {} {} {}".format(
-                request.req_id, request.method, request.uri
-            )
-        )
         externalhandler.send_http_response(
-            request.req_id, "<html><body><b>This is from python!</b></body></html>"
+            request.req_id,
+            bytes("<html><body>Killing process</body></html>", "UTF-8"),
         )
+
+        kill_processes("kismet")
 
     def loop(self):
         while self.kei.is_running():
